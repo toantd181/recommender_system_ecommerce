@@ -1,0 +1,204 @@
+{
+ "val_data": {
+  "nov": {
+   "session covisit hit@10": 0.2594117222239417,
+   "fbt hit@10": 0.2557045401082098,
+   "fbt product rules": 480.0,
+   "fbt queries with rule": 0.2956951305575159,
+   "users unseen share": 0.341848760909728,
+   "PopularByCategory hit@10": 0.18621392622794164
+  },
+  "oct+nov": {
+   "session covisit hit@10": 0.2574514841065957,
+   "fbt hit@10": 0.269701246765467,
+   "fbt product rules": 869.0,
+   "fbt queries with rule": 0.33262761703128674,
+   "users unseen share": 0.24698987067592534,
+   "PopularByCategory hit@10": 0.17481047333885455
+  }
+ },
+ "val_covisit": {
+  "hit@10": {
+   "plain w3": 0.2594117222239417,
+   "plain w5": 0.25636819462069393,
+   "type": 0.2578538487727878,
+   "time": 0.26103149793143293,
+   "type+time": 0.2586998462760634,
+   "type+time w5": 0.2558007572709359
+  },
+  "mrr@10": {
+   "plain w3": 0.10127480573254197,
+   "plain w5": 0.09938680329051433,
+   "type": 0.1009677181370827,
+   "time": 0.10208421048666799,
+   "type+time": 0.10158899653003464,
+   "type+time w5": 0.09999119776116898
+  },
+  "hit@20": {
+   "plain w3": 0.36039493639543163,
+   "plain w5": 0.35832121080813395,
+   "type": 0.3587545266024947,
+   "time": 0.3623654915555005,
+   "type+time": 0.3600854251137454,
+   "type+time w5": 0.35847596644897706
+  },
+  "sec": {
+   "plain w3": 10.0,
+   "plain w5": 12.0,
+   "type": 15.0,
+   "time": 18.0,
+   "type+time": 18.0,
+   "type+time w5": 21.0
+  }
+ },
+ "val_hybrid": {
+  "hit@10": {
+   "share=0": 0.2614441796403479,
+   "share=2": 0.26883118222992564,
+   "share=4": 0.2565332673042599
+  },
+  "mrr@10": {
+   "share=0": 0.10220951752104064,
+   "share=2": 0.10306755157415963,
+   "share=4": 0.1020047651636373
+  },
+  "hit@20": {
+   "share=0": 0.3638408286648715,
+   "share=2": 0.37275475357743454,
+   "share=4": 0.3694223487779463
+  },
+  "mrr@20": {
+   "share=0": 0.10930352308318694,
+   "share=2": 0.109773600129776,
+   "share=4": 0.10966082015981295
+  }
+ },
+ "val_fbt": {
+  "hit@10": {
+   "min_count=2 fbt (same-cat first)": 0.26687838155728066,
+   "min_count=2 fbt (cat-rules first)": 0.18525052928722655,
+   "min_count=3 fbt (same-cat first)": 0.2557045401082098,
+   "min_count=3 fbt (cat-rules first)": 0.16278522700541048,
+   "min_count=5 fbt (same-cat first)": 0.24253116913667372,
+   "min_count=5 fbt (cat-rules first)": 0.13585038814396613
+  },
+  "rules": {
+   "min_count=2 fbt (same-cat first)": 1414.0,
+   "min_count=2 fbt (cat-rules first)": 1414.0,
+   "min_count=3 fbt (same-cat first)": 480.0,
+   "min_count=3 fbt (cat-rules first)": 480.0,
+   "min_count=5 fbt (same-cat first)": 187.0,
+   "min_count=5 fbt (cat-rules first)": 187.0
+  }
+ },
+ "chosen": {
+  "data": "nov",
+  "covisit": {
+   "time_weighted": true
+  },
+  "share": 2,
+  "fbt_min_count": 2,
+  "fbt_same_cat_first": true
+ },
+ "test_users": {
+  "hit@10": {
+   "PopularRecent": "0.1723 [0.1648, 0.1796]",
+   "PopularByCategory": "0.1869 [0.1799, 0.1951]"
+  },
+  "ndcg@10": {
+   "PopularRecent": "0.0796 [0.0758, 0.0836]",
+   "PopularByCategory": "0.0934 [0.0892, 0.0982]"
+  },
+  "hit@10 unseen": {
+   "PopularRecent": 0.1877,
+   "PopularByCategory": 0.1877
+  },
+  "hit@10 light": {
+   "PopularRecent": 0.1809,
+   "PopularByCategory": 0.1723
+  },
+  "hit@10 heavy": {
+   "PopularRecent": 0.161,
+   "PopularByCategory": 0.1895
+  },
+  "coverage": {
+   "PopularRecent": 0.0001,
+   "PopularByCategory": 0.0309
+  },
+  "novelty": {
+   "PopularRecent": 7.4927,
+   "PopularByCategory": 9.7636
+  },
+  "pop_share": {
+   "PopularRecent": 1.0,
+   "PopularByCategory": 0.8267
+  }
+ },
+ "test_session": {
+  "hit@10": {
+   "popular": "0.0345 [0.0328, 0.0363]",
+   "item2vec+side_info": "0.2098 [0.2057, 0.2141]",
+   "covisit (plain)": "0.2589 [0.2543, 0.2635]",
+   "covisit (chosen {'time_weighted': True})": "0.2615 [0.2570, 0.2662]",
+   "hybrid share=2": "0.2762 [0.2715, 0.2807]"
+  },
+  "mrr@10": {
+   "popular": "0.0119 [0.0112, 0.0127]",
+   "item2vec+side_info": "0.1008 [0.0984, 0.1032]",
+   "covisit (plain)": "0.1028 [0.1007, 0.1051]",
+   "covisit (chosen {'time_weighted': True})": "0.1040 [0.1018, 0.1063]",
+   "hybrid share=2": "0.1057 [0.1035, 0.1080]"
+  },
+  "coverage": {
+   "popular": 0.0001,
+   "item2vec+side_info": 0.4014,
+   "covisit (plain)": 0.4263,
+   "covisit (chosen {'time_weighted': True})": 0.415,
+   "hybrid share=2": 0.4704
+  },
+  "novelty": {
+   "popular": 7.495,
+   "item2vec+side_info": 15.4422,
+   "covisit (plain)": 12.9924,
+   "covisit (chosen {'time_weighted': True})": 13.0038,
+   "hybrid share=2": 13.5329
+  },
+  "pop_share": {
+   "popular": 1.0,
+   "item2vec+side_info": 0.2857,
+   "covisit (plain)": 0.4931,
+   "covisit (chosen {'time_weighted': True})": 0.4918,
+   "hybrid share=2": 0.4475
+  }
+ },
+ "test_fbt": {
+  "hit@10": {
+   "fbt (same-cat first)": "0.3083 [0.2897, 0.3268]",
+   "fbt (cat-rules first)": "0.2268 [0.2095, 0.2456]",
+   "popular_same_cat": "0.2466 [0.2281, 0.2639]",
+   "popular_global": "0.1346 [0.1210, 0.1507]"
+  },
+  "coverage": {
+   "fbt (same-cat first)": 0.0276,
+   "fbt (cat-rules first)": 0.0222,
+   "popular_same_cat": 0.0243,
+   "popular_global": 0.0001
+  },
+  "novelty": {
+   "fbt (same-cat first)": 10.941,
+   "fbt (cat-rules first)": 9.8626,
+   "popular_same_cat": 10.8824,
+   "popular_global": 7.4984
+  },
+  "pop_share": {
+   "fbt (same-cat first)": 0.735,
+   "fbt (cat-rules first)": 0.8138,
+   "popular_same_cat": 0.7337,
+   "popular_global": 1.0
+  }
+ },
+ "substitutes": {
+  "truth_same_cat": 0.6666666666666666,
+  "rules_same_cat": 0.8595592004100461
+ }
+}
