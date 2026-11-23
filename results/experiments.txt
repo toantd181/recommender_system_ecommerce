@@ -1,0 +1,23 @@
+
+######## STAGE 1 – validation week 2019-11-17 → 2019-11-24
+
+-- 1a. Nov only vs Oct+Nov as history
+                               nov   oct+nov
+session covisit hit@10      0.2594    0.2575
+fbt hit@10                  0.2557    0.2697
+fbt product rules         480.0000  869.0000
+fbt queries with rule       0.2957    0.3326
+users unseen share          0.3418    0.2470
+PopularByCategory hit@10    0.1862    0.1748
+chosen data: {'data_users': 'nov', 'data_session': 'nov', 'data_fbt': 'oct+nov'}
+
+-- 1b. co-visitation variants (session next-item, val)
+              hit@10  mrr@10  hit@20   sec
+plain w3      0.2594  0.1013  0.3604  13.0
+plain w5      0.2564  0.0994  0.3583  13.0
+type          0.2579  0.1010  0.3588  17.0
+time          0.2610  0.1021  0.3624  26.0
+type+time     0.2587  0.1016  0.3601  24.0
+type+time w5  0.2558  0.1000  0.3585  28.0
+chosen co-visitation: time {'time_weighted': True}
+
