@@ -30,7 +30,8 @@
 
 **Từ 22–24/11:**
 - Khôi: khung đánh giá theo slide L8, baseline, FP-Growth, Item2Vec + co-visitation + bộ xếp hạng LTR cho khách vãng lai, demo Streamlit (xem `BAO_CAO_TIEN_DO_KHOI.md`).
-- Dương: `src/als.py` + `src/run_als.py` (ALS), `src/content_based.py` (content-based), `src/router.py` + `src/run_router.py` (bộ định tuyến), ghép vào `src/build_artifacts.py` và `app.py`; kết quả ở `results/als.txt`, `results/router.txt`. 17/17 test qua.
+- Dương (demo): làm lại giao diện Streamlit sau khi hai chuyên gia (UI/UX và hệ gợi ý) review: thẻ sản phẩm, lý do gợi ý thật cho từng dòng, tách luật "mua cùng" khỏi phần bổ sung, giỏ hàng tương tác, tab Đánh giá (`src/make_summary.py` → `results/summary.json`).
+- Dương: `src/als.py` + `src/run_als.py` (ALS), `src/content_based.py` (content-based), `src/router.py` + `src/run_router.py` (bộ định tuyến), ghép vào `src/build_artifacts.py` và `app.py`; kết quả ở `results/als.txt`, `results/router.txt`. 17/18 test qua.
 
 > Lưu ý: dữ liệu thô và dữ liệu sạch **không nằm trong repo** (quá nặng). Cách tái tạo ở mục 7.
 
@@ -147,5 +148,5 @@ export PYTHONPATH=src OPENBLAS_NUM_THREADS=1
 .venv/bin/python src/run_als.py        # chọn tham số ALS trên validation, test một lần → results/als.txt (~5 phút)
 .venv/bin/python src/run_router.py     # content-based + chọn mô-đun theo nhóm + test → results/router.txt (~3 phút)
 .venv/bin/python src/build_artifacts.py && .venv/bin/streamlit run app.py
-.venv/bin/python -m pytest -q tests    # 17 test
+.venv/bin/python -m pytest -q tests    # 18 test
 ```

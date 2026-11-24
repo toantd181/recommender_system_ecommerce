@@ -66,12 +66,16 @@ def main() -> None:
     catalog = product_catalog(df_fbt if len(df_fbt) > len(nov) else nov)
     user_hist = df_users.groupby("user_id").size()
     dense = user_hist[user_hist.between(20, 200)]
+    light = user_hist[user_hist.between(2, 4)]  # new members: the router sends them to ALS+content with a thin profile
+    light = light.sample(min(60, len(light)), random_state=0)
+    shown = dense.index.union(light.index)
     artifacts = {
         "settings": chosen,
         "catalog": catalog,
         "demo_products": catalog[catalog["n_events"] >= args.min_product_events].index.tolist(),
         "demo_users": dense.sample(min(200, len(dense)), random_state=0).index.tolist(),
-        "history": df_users[df_users["user_id"].isin(dense.index)][["user_id", "event_time", "event_type", "product_id"]],
+        "demo_users_light": light.index.tolist(),
+        "history": df_users[df_users["user_id"].isin(shown)][["user_id", "event_time", "event_type", "product_id"]],
     }
 
     def fit(name, model, df):

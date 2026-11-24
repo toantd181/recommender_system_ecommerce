@@ -127,3 +127,17 @@ PYTHONPATH=src OPENBLAS_NUM_THREADS=1 .venv/bin/python src/run_router.py   # →
   cosine + độ phổ biến; `recommend_from_items` cho thành viên mới chọn danh mục/sản phẩm lúc đăng ký.
 - `src/router.py`: `HybridRouter` (chọn mô-đun theo nhóm `unseen`/`light`/`heavy`), `RankFusion` (hợp nhất theo thứ hạng).
 - `src/build_artifacts.py` đọc `results/router.json` (ALS, content-based, lựa chọn mô-đun) và demo `app.py` dùng router.
+
+## Demo Streamlit (giao diện mới)
+
+```bash
+.venv/bin/python src/build_artifacts.py     # huấn luyện mọi mô hình → artifacts/models.pkl (không đưa lên Git)
+.venv/bin/python src/make_summary.py        # gom số liệu test cho tab "Đánh giá" → results/summary.json
+.venv/bin/streamlit run app.py
+```
+
+- Dữ liệu không có tên/ảnh sản phẩm nên mỗi sản phẩm là một thẻ: tên sinh từ thương hiệu + danh mục, ô màu theo danh mục, giá, độ phổ biến.
+- Mỗi gợi ý kèm **bằng chứng thật** thay cho điểm mô hình (không so sánh được giữa các mô-đun): thuộc tính trùng với sản phẩm gốc (danh mục / thương hiệu / tầm giá), "Đã xem / Đã mua / Mới" với người dùng cũ, "% khách mua cùng" với FP-Growth.
+- "Thường được mua cùng" tách luật khai phá thật khỏi phần bổ sung theo danh mục; có thể thêm vào giỏ từ mọi thẻ.
+- Người dùng cũ chọn được 3 nhóm (nhiều lịch sử / ít lịch sử / chưa có lịch sử) để thấy bộ định tuyến chọn mô-đun khác nhau.
+- Tab "Đánh giá" đọc `results/summary.json`; mục "Giới hạn của demo" ở thanh bên nêu các hạn chế của đánh giá offline.
