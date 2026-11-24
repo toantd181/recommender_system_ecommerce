@@ -9,15 +9,19 @@ Usage:
 import argparse
 import json
 import pickle
+import re
 from pathlib import Path
 
 import pandas as pd
 
+from als import ALSRecommender
 from baselines import PopularByCategory, PopularRecent
+from content_based import ContentBased
 from evalkit import load_events
 from fbt import FrequentlyBoughtTogether
 from item2vec import CoVisitation, CoVisitThenItem2Vec, Item2Vec
 from ltr_session import SessionLTR, fit_ranker, item_table
+from router import HybridRouter, RankFusion
 
 DEFAULT_CHOSEN = {
     "data_users": "nov", "data_session": "nov", "data_fbt": "nov",
@@ -40,6 +44,7 @@ def main() -> None:
     ap.add_argument("--nov", default="data/nov_u5.parquet")
     ap.add_argument("--octnov", default="data/octnov_u5.parquet")
     ap.add_argument("--chosen", default="results/experiments.json")
+    ap.add_argument("--router", default="results/router.json", help="ALS/content settings + routing from run_router.py")
     ap.add_argument("--out-dir", default="artifacts")
     ap.add_argument("--min-product-events", type=int, default=20, help="catalog shown in the demo pickers")
     ap.add_argument("--no-ltr", action="store_true", help="skip the session re-ranker (faster build)")
@@ -75,7 +80,22 @@ def main() -> None:
         return artifacts[name]
 
     fit("trending", PopularRecent(7), df_users)
-    fit("old_member", PopularByCategory(7), df_users)  # placeholder until the ALS module is ready
+    # user-level modules (ALS + content-based) and the router, as chosen on the validation week
+    rc = json.loads(Path(args.router).read_text())
+    als = fit("als", ALSRecommender(**{**rc["als"], "threads": 4}), df_users)
+    content = fit("content", ContentBased(**rc["content"]), df_users)
+    pop_cat = fit("pop_by_category", PopularByCategory(7), df_users)
+    modules = {"PopularRecent": artifacts["trending"], "PopularByCategory": pop_cat, "ALS": als, "ContentBased": content}
+
+    def module(name):
+        if name in modules:
+            return modules[name]
+        wa, wc = map(float, re.findall(r"×([\d.]+)", name))  # e.g. "Fusion(ALS×2, Content×1)"
+        return RankFusion([als, content], [wa, wc])
+
+    router = HybridRouter({g: module(n) for g, n in rc["routing"].items()})
+    router.fit(df_users)
+    artifacts["router"], artifacts["routing"] = router, rc["routing"]
     fbt = FrequentlyBoughtTogether(min_count=chosen["fbt_min_count"])
     fbt.same_cat_first = chosen["fbt_same_cat_first"]
     fit("fbt", fbt, df_fbt)

@@ -64,25 +64,25 @@ def guest_recs(session, k, engine):
     return A[engine].recommend_session(session, k)
 
 
-def new_member_recs(main_cats, k):
-    # placeholder for the content-based module: most popular products of each chosen
-    # category, interleaved so every category gets a share of the K slots
-    if not main_cats:
+def new_member_recs(main_cats, seed_products, k):
+    """Content-based: profile built from products the new member viewed, or - when they only gave
+    favourite categories at sign-up - from the best sellers of those categories."""
+    if not main_cats and not seed_products:
         return trending(k)
-    per_cat = [
-        catalog[catalog["main_category"] == c]["n_events"].nlargest(k).index.tolist()
-        for c in sorted(main_cats)
-    ]
-    picks = [p for group in zip(*per_cat) for p in group]  # round-robin
-    for group in per_cat:  # categories with fewer items than the others
-        picks += [p for p in group if p not in picks]
-    cat_of = catalog["main_category"]
-    return [(p, 0.0, f"Phổ biến trong danh mục {cat_of[p]}") for p in picks[:k]]
+    seeds, reason = list(seed_products), "Giống sản phẩm bạn đã xem (danh mục · thương hiệu · tầm giá)"
+    if not seeds:
+        for c in sorted(main_cats):
+            seeds += catalog[catalog["main_category"] == c]["n_events"].nlargest(3).index.tolist()
+        reason = "Giống các sản phẩm bán chạy trong danh mục bạn chọn (danh mục · thương hiệu · tầm giá)"
+    recs = A["content"].recommend_from_items(seeds, k, exclude=seeds)
+    return [(p, s_, reason) for p, s_ in recs]
 
 
 def old_member_recs(user_id, k):
-    recs = A["old_member"].recommend([user_id], k)[user_id]
-    return [(p, 0.0, "Phổ biến trong danh mục bạn hay xem (tạm thời, chờ ALS)") for p in recs]
+    group = A["router"].group_of([user_id])[user_id]
+    recs = A["router"].recommend([user_id], k)[user_id]
+    return [(p, 0.0, f"Người dùng tương tự + sản phẩm cùng danh mục/thương hiệu bạn quan tâm (ALS + content, nhóm {group})")
+            for p in recs]
 
 
 # ---------------------------------------------------------------- sidebar
@@ -110,12 +110,13 @@ with tab_home:
         session = st.multiselect("Sản phẩm đã xem trong phiên (theo thứ tự)", products, format_func=label)
         show(guest_recs(session, k, engine), "Gợi ý cho phiên hiện tại" if session else "Đang thịnh hành")
     elif user_type == "Thành viên mới":
-        st.caption("Bộ định tuyến → mô-đun content-based (bản tạm: bán chạy theo danh mục)")
+        st.caption("Bộ định tuyến → mô-đun content-based (vector danh mục · thương hiệu · tầm giá, cosine similarity)")
         cats = sorted(c for c in catalog["main_category"].unique() if c != "unknown")
         fav = st.multiselect("Danh mục yêu thích chọn lúc đăng ký", cats, default=cats[:2])
-        show(new_member_recs(set(fav), k), "Gợi ý theo danh mục yêu thích")
+        seen = st.multiselect("Sản phẩm vừa xem (tuỳ chọn, ưu tiên hơn danh mục)", products, format_func=label)
+        show(new_member_recs(set(fav), seen, k), "Gợi ý cho thành viên mới")
     else:
-        st.caption("Bộ định tuyến → mô-đun lọc cộng tác (bản tạm: phổ biến theo danh mục, chờ ALS)")
+        st.caption("Bộ định tuyến → ALS + content-based (hợp nhất theo thứ hạng)")
         uid = st.selectbox("Chọn người dùng", A["demo_users"])
         hist = A["history"][A["history"]["user_id"] == uid].sort_values("event_time")
         with st.expander(f"Lịch sử ({len(hist)} sự kiện)"):

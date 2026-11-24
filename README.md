@@ -116,3 +116,14 @@ PYTHONPATH=src .venv/bin/python src/run_als.py     # chọn tham số trên vali
 
 `src/als.py` có `ALSRecommender` đúng giao diện `fit(train)` / `recommend(user_ids, k)`; người dùng
 chưa có lịch sử rơi về `PopularRecent`. Kết quả và các lựa chọn: xem `results/als.txt`.
+
+## Content-based và bộ định tuyến (Dương)
+
+```bash
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 .venv/bin/python src/run_router.py   # → results/router.txt, results/router.json
+```
+
+- `src/content_based.py`: `ContentBased` – vector sản phẩm (`category_id`, `brand`, khoảng giá), hồ sơ người dùng từ lịch sử,
+  cosine + độ phổ biến; `recommend_from_items` cho thành viên mới chọn danh mục/sản phẩm lúc đăng ký.
+- `src/router.py`: `HybridRouter` (chọn mô-đun theo nhóm `unseen`/`light`/`heavy`), `RankFusion` (hợp nhất theo thứ hạng).
+- `src/build_artifacts.py` đọc `results/router.json` (ALS, content-based, lựa chọn mô-đun) và demo `app.py` dùng router.
