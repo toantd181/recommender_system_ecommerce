@@ -1,0 +1,10 @@
+{
+ "chosen": {
+  "factors": 128,
+  "regularization": 0.2,
+  "alpha": 20.0,
+  "half_life_days": 7.0,
+  "filter_seen": null,
+  "data": "nov"
+ }
+}

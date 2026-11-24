@@ -37,7 +37,13 @@ def main() -> None:
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     writer, rows, total = None, 0, 0
-    with zipfile.ZipFile(args.zip_path) as zf, zf.open(args.member) as f:
+    # accepts either archive.zip (+ member name) or an already-extracted .csv (member ignored)
+    src = (
+        open(args.zip_path, "rb")
+        if args.zip_path.endswith(".csv")
+        else zipfile.ZipFile(args.zip_path).open(args.member)
+    )
+    with src as f:
         reader = pd.read_csv(
             f, chunksize=args.chunksize, dtype=DTYPES, usecols=["event_time", *DTYPES]
         )

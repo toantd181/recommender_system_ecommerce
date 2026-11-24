@@ -106,3 +106,13 @@ Thêm mô hình vào dict `models` trong `src/build_artifacts.py` rồi build l�
   (17–23/11) có chứa ngày 17/11.
 - Khung đánh giá chưa có tùy chọn loại sản phẩm đã tương tác ở train; có thể cần cho ALS.
 - `data/`, `artifacts/` (~186 MB), `archive.zip` không đưa lên Git.
+
+## ALS cho thành viên cũ (Dương)
+
+```bash
+.venv/bin/pip install implicit
+PYTHONPATH=src .venv/bin/python src/run_als.py     # chọn tham số trên validation, test một lần → results/als.txt
+```
+
+`src/als.py` có `ALSRecommender` đúng giao diện `fit(train)` / `recommend(user_ids, k)`; người dùng
+chưa có lịch sử rơi về `PopularRecent`. Kết quả và các lựa chọn: xem `results/als.txt`.
