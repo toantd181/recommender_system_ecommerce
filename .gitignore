@@ -1,0 +1,10 @@
+.venv/
+data/
+artifacts/
+raw_data/
+cleaned_data/
+archive.zip
+__pycache__/
+.pytest_cache/
+notebook/iframe_figures/
+.ipynb_checkpoints/

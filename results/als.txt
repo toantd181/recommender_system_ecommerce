@@ -1,0 +1,46 @@
+######## STAGE 1 – validation 2019-11-17 → 2019-11-24
+  data=     nov  data=nov      ndcg@10(history users)=0.1248  hit@10=0.2493  [12s]
+  data= oct+nov  data=oct+nov  ndcg@10(history users)=0.1111  hit@10=0.2269  [22s]
+-> best data: nov
+  filter_seen=    None  data=nov      ndcg@10(history users)=0.1437  hit@10=0.2780  [11s]
+  filter_seen=purchased  data=nov      ndcg@10(history users)=0.1248  hit@10=0.2493  [11s]
+  filter_seen=     all  data=nov      ndcg@10(history users)=0.0431  hit@10=0.1002  [14s]
+-> best filter_seen: None
+  half_life_days=    None  data=nov      ndcg@10(history users)=0.1409  hit@10=0.2734  [11s]
+  half_life_days=     7.0  data=nov      ndcg@10(history users)=0.1466  hit@10=0.2819  [11s]
+  half_life_days=    14.0  data=nov      ndcg@10(history users)=0.1437  hit@10=0.2780  [11s]
+  half_life_days=    30.0  data=nov      ndcg@10(history users)=0.1423  hit@10=0.2750  [11s]
+-> best half_life_days: 7.0
+  alpha=     5.0  data=nov      ndcg@10(history users)=0.1455  hit@10=0.2716  [11s]
+  alpha=    20.0  data=nov      ndcg@10(history users)=0.1466  hit@10=0.2819  [11s]
+  alpha=    60.0  data=nov      ndcg@10(history users)=0.1368  hit@10=0.2702  [11s]
+-> best alpha: 20.0
+  factors=      32  data=nov      ndcg@10(history users)=0.1308  hit@10=0.2563  [10s]
+  factors=      64  data=nov      ndcg@10(history users)=0.1466  hit@10=0.2819  [11s]
+  factors=     128  data=nov      ndcg@10(history users)=0.1613  hit@10=0.3066  [15s]
+-> best factors: 128
+  regularization=    0.01  data=nov      ndcg@10(history users)=0.1607  hit@10=0.3060  [16s]
+  regularization=    0.05  data=nov      ndcg@10(history users)=0.1613  hit@10=0.3066  [15s]
+  regularization=     0.2  data=nov      ndcg@10(history users)=0.1614  hit@10=0.3062  [16s]
+-> best regularization: 0.2
+validation PopularByCategory ndcg@10(history users)=0.0899 hit@10=0.1871
+CHOSEN: {'factors': 128, 'regularization': 0.2, 'alpha': 20.0, 'half_life_days': 7.0, 'filter_seen': None, 'data': 'nov'}
+
+######## STAGE 2 – test 2019-11-24 → end (single run)
+== ALS ==
+        n_users  precision@10  recall@10   f1@10  hit@10  mrr@10  map@10  ndcg@10  rankscore@10  liftindex@10  precision@20  recall@20   f1@20  hit@20  mrr@20  map@20  ndcg@20  rankscore@20  liftindex@20
+all       10101        0.0290     0.2085  0.0490  0.2525  0.1299  0.1270   0.1372        0.1231        0.1826        0.0187     0.2627  0.0339  0.3112  0.1340  0.1283   0.1523        0.1238        0.2304
+unseen     3393        0.0208     0.1589  0.0357  0.1877  0.0857  0.0823   0.0946        0.0811        0.1259        0.0139     0.2110  0.0256  0.2455  0.0898  0.0848   0.1088        0.0818        0.1725
+light      1161        0.0243     0.1921  0.0421  0.2205  0.1330  0.1319   0.1392        0.1292        0.1725        0.0141     0.2223  0.0261  0.2524  0.1351  0.1326   0.1472        0.1296        0.2032
+heavy      5547        0.0350     0.2422  0.0585  0.2987  0.1563  0.1532   0.1629        0.1474        0.2194        0.0225     0.3027  0.0406  0.3636  0.1608  0.1539   0.1800        0.1482        0.2715
+== PopularByCategory ==
+        n_users  precision@10  recall@10   f1@10  hit@10  mrr@10  map@10  ndcg@10  rankscore@10  liftindex@10  precision@20  recall@20   f1@20  hit@20  mrr@20  map@20  ndcg@20  rankscore@20  liftindex@20
+all       10101        0.0208     0.1511  0.0353  0.1866  0.0868  0.0843   0.0932        0.0813        0.1287        0.0139     0.1999  0.0254  0.2418  0.0906  0.0868   0.1066        0.0819        0.1716
+unseen     3393        0.0208     0.1589  0.0357  0.1877  0.0857  0.0823   0.0946        0.0811        0.1259        0.0139     0.2110  0.0256  0.2455  0.0898  0.0848   0.1088        0.0818        0.1725
+light      1161        0.0189     0.1499  0.0328  0.1740  0.0846  0.0839   0.0941        0.0840        0.1262        0.0122     0.1902  0.0225  0.2171  0.0876  0.0856   0.1049        0.0845        0.1608
+heavy      5547        0.0213     0.1466  0.0356  0.1886  0.0879  0.0857   0.0922        0.0807        0.1308        0.0143     0.1951  0.0259  0.2446  0.0918  0.0883   0.1056        0.0814        0.1733
+hit@10 (users with history, n=6708): ALS 0.2852 [0.2744, 0.2962] | PopularByCategory 0.1860 [0.1775, 0.1966] | diff +0.0991 [+0.0881, +0.1091] p=0.000
+ndcg@10 (users with history, n=6708): ALS 0.1588 [0.1520, 0.1663] | PopularByCategory 0.0925 [0.0873, 0.0984] | diff +0.0663 [+0.0601, +0.0723] p=0.000
+recall@10 (users with history, n=6708): ALS 0.2336 [0.2237, 0.2438] | PopularByCategory 0.1472 [0.1396, 0.1562] | diff +0.0864 [+0.0764, +0.0952] p=0.000
+beyond accuracy ALS: {'coverage': 0.0226, 'novelty': 9.7521, 'pop_share': 0.9116}
+beyond accuracy PopularByCategory: {'coverage': 0.032, 'novelty': 9.7823, 'pop_share': 0.8245}

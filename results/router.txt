@@ -1,0 +1,70 @@
+######## STAGE 1a – ContentBased tuning, validation 2019-11-17 → 2019-11-24  (metric: ndcg@10, light users)
+  beta=  0.0  ndcg@10(light)=0.0649  hit@10(light)=0.1243  ndcg@10(heavy)=0.0711  [4s]
+  beta=  0.5  ndcg@10(light)=0.1199  hit@10(light)=0.1971  ndcg@10(heavy)=0.1395  [4s]
+  beta=  1.0  ndcg@10(light)=0.1255  hit@10(light)=0.2139  ndcg@10(heavy)=0.1334  [4s]
+  beta=  2.0  ndcg@10(light)=0.1240  hit@10(light)=0.2329  ndcg@10(heavy)=0.1136  [4s]
+  beta=  4.0  ndcg@10(light)=0.1085  hit@10(light)=0.2111  ndcg@10(heavy)=0.0893  [4s]
+-> best beta: 1.0
+  w_brand=  0.0  ndcg@10(light)=0.1096  hit@10(light)=0.1920  ndcg@10(heavy)=0.1138  [4s]
+  w_brand=  0.5  ndcg@10(light)=0.1255  hit@10(light)=0.2139  ndcg@10(heavy)=0.1334  [4s]
+  w_brand=  1.0  ndcg@10(light)=0.1276  hit@10(light)=0.2245  ndcg@10(heavy)=0.1378  [3s]
+  w_brand=  2.0  ndcg@10(light)=0.1237  hit@10(light)=0.2200  ndcg@10(heavy)=0.1296  [4s]
+-> best w_brand: 1.0
+  w_price=  0.0  ndcg@10(light)=0.1190  hit@10(light)=0.2156  ndcg@10(heavy)=0.1245  [3s]
+  w_price=  0.5  ndcg@10(light)=0.1276  hit@10(light)=0.2245  ndcg@10(heavy)=0.1378  [4s]
+  w_price=  1.0  ndcg@10(light)=0.1214  hit@10(light)=0.2027  ndcg@10(heavy)=0.1409  [4s]
+  w_price=  2.0  ndcg@10(light)=0.1102  hit@10(light)=0.1881  ndcg@10(heavy)=0.1167  [4s]
+-> best w_price: 0.5
+  cand_days=    7  ndcg@10(light)=0.1284  hit@10(light)=0.2273  ndcg@10(heavy)=0.1392  [4s]
+  cand_days=   14  ndcg@10(light)=0.1276  hit@10(light)=0.2245  ndcg@10(heavy)=0.1378  [4s]
+  cand_days=   30  ndcg@10(light)=0.1273  hit@10(light)=0.2240  ndcg@10(heavy)=0.1377  [4s]
+-> best cand_days: 7
+CONTENT CHOSEN: {'w_brand': 1.0, 'w_price': 0.5, 'beta': 1.0, 'cand_days': 7}
+
+######## STAGE 1b – best module per user group (validation, ndcg@10 / hit@10)
+                                   unseen            light            heavy
+PopularRecent             0.0835 / 0.1824  0.0793 / 0.1747  0.0627 / 0.1491
+PopularByCategory         0.0835 / 0.1824  0.0903 / 0.1736  0.0898 / 0.1899
+ALS                       0.0835 / 0.1824  0.1384 / 0.2268  0.1663 / 0.3228
+ContentBased              0.0835 / 0.1824  0.1284 / 0.2273  0.1392 / 0.2686
+Fusion(ALS×1, Content×1)  0.0835 / 0.1824  0.1428 / 0.2413  0.1696 / 0.3244
+Fusion(ALS×2, Content×1)  0.0835 / 0.1824  0.1451 / 0.2385  0.1732 / 0.3307
+Fusion(ALS×1, Content×2)  0.0835 / 0.1824  0.1402 / 0.2441  0.1607 / 0.3075
+ROUTING CHOSEN: {'unseen': 'PopularRecent', 'light': 'Fusion(ALS×2, Content×1)', 'heavy': 'Fusion(ALS×2, Content×1)'}
+
+######## STAGE 2 – test 2019-11-24 → end (single run)
+== Router ==
+        n_users  precision@10  recall@10   f1@10  hit@10  mrr@10  map@10  ndcg@10  rankscore@10  liftindex@10  precision@20  recall@20   f1@20  hit@20  mrr@20  map@20  ndcg@20  rankscore@20  liftindex@20
+all       10101        0.0299     0.2147  0.0505  0.2590  0.1365  0.1327   0.1429        0.1285        0.1885        0.0192     0.2704  0.0349  0.3177  0.1406  0.1338   0.1584        0.1292        0.2363
+unseen     3393        0.0208     0.1589  0.0357  0.1877  0.0857  0.0823   0.0946        0.0811        0.1259        0.0139     0.2110  0.0256  0.2455  0.0898  0.0848   0.1088        0.0818        0.1725
+light      1161        0.0251     0.1972  0.0434  0.2257  0.1366  0.1346   0.1430        0.1333        0.1770        0.0148     0.2308  0.0274  0.2593  0.1389  0.1346   0.1521        0.1338        0.2093
+heavy      5547        0.0366     0.2525  0.0611  0.3095  0.1677  0.1632   0.1724        0.1564        0.2292        0.0234     0.3151  0.0422  0.3741  0.1721  0.1636   0.1900        0.1572        0.2810
+== PopularByCategory ==
+        n_users  precision@10  recall@10   f1@10  hit@10  mrr@10  map@10  ndcg@10  rankscore@10  liftindex@10  precision@20  recall@20   f1@20  hit@20  mrr@20  map@20  ndcg@20  rankscore@20  liftindex@20
+all       10101        0.0208     0.1511  0.0353  0.1866  0.0868  0.0843   0.0932        0.0813        0.1287        0.0139     0.1999  0.0254  0.2418  0.0906  0.0868   0.1066        0.0819        0.1716
+unseen     3393        0.0208     0.1589  0.0357  0.1877  0.0857  0.0823   0.0946        0.0811        0.1259        0.0139     0.2110  0.0256  0.2455  0.0898  0.0848   0.1088        0.0818        0.1725
+light      1161        0.0189     0.1499  0.0328  0.1740  0.0846  0.0839   0.0941        0.0840        0.1262        0.0122     0.1902  0.0225  0.2171  0.0876  0.0856   0.1049        0.0845        0.1608
+heavy      5547        0.0213     0.1466  0.0356  0.1886  0.0879  0.0857   0.0922        0.0807        0.1308        0.0143     0.1951  0.0259  0.2446  0.0918  0.0883   0.1056        0.0814        0.1733
+== ALS ==
+        n_users  precision@10  recall@10   f1@10  hit@10  mrr@10  map@10  ndcg@10  rankscore@10  liftindex@10  precision@20  recall@20   f1@20  hit@20  mrr@20  map@20  ndcg@20  rankscore@20  liftindex@20
+all       10101        0.0290     0.2086  0.0490  0.2526  0.1300  0.1271   0.1374        0.1231        0.1826        0.0187     0.2627  0.0339  0.3111  0.1341  0.1283   0.1524        0.1238        0.2304
+unseen     3393        0.0208     0.1589  0.0357  0.1877  0.0857  0.0823   0.0946        0.0811        0.1259        0.0139     0.2110  0.0256  0.2455  0.0898  0.0848   0.1088        0.0818        0.1725
+light      1161        0.0244     0.1929  0.0423  0.2214  0.1331  0.1320   0.1395        0.1293        0.1726        0.0141     0.2223  0.0261  0.2524  0.1351  0.1326   0.1472        0.1296        0.2033
+heavy      5547        0.0350     0.2423  0.0585  0.2989  0.1565  0.1534   0.1630        0.1475        0.2194        0.0225     0.3027  0.0406  0.3634  0.1610  0.1540   0.1801        0.1483        0.2715
+== ContentBased ==
+        n_users  precision@10  recall@10   f1@10  hit@10  mrr@10  map@10  ndcg@10  rankscore@10  liftindex@10  precision@20  recall@20   f1@20  hit@20  mrr@20  map@20  ndcg@20  rankscore@20  liftindex@20
+all       10101        0.0266     0.1924  0.0450  0.2326  0.1194  0.1155   0.1254        0.1116        0.1669        0.0173     0.2458  0.0315  0.2915  0.1235  0.1175   0.1402        0.1123        0.2135
+unseen     3393        0.0208     0.1589  0.0357  0.1877  0.0857  0.0823   0.0946        0.0811        0.1259        0.0139     0.2110  0.0256  0.2455  0.0898  0.0848   0.1088        0.0818        0.1725
+light      1161        0.0235     0.1883  0.0409  0.2136  0.1258  0.1237   0.1335        0.1230        0.1641        0.0143     0.2266  0.0266  0.2541  0.1285  0.1255   0.1438        0.1234        0.1975
+heavy      5547        0.0308     0.2137  0.0515  0.2639  0.1387  0.1342   0.1425        0.1278        0.1926        0.0200     0.2711  0.0361  0.3274  0.1431  0.1359   0.1586        0.1285        0.2420
+
+hit@10 / ndcg@10 with 95% CI (all test users with cart/purchase):
+  Router             hit@10 0.2590 [0.2505, 0.2680]   ndcg@10 0.1429 [0.1376, 0.1489]
+  PopularByCategory  hit@10 0.1866 [0.1796, 0.1945]   ndcg@10 0.0932 [0.0890, 0.0979]
+  ALS                hit@10 0.2526 [0.2444, 0.2612]   ndcg@10 0.1374 [0.1319, 0.1432]
+  ContentBased       hit@10 0.2326 [0.2248, 0.2415]   ndcg@10 0.1254 [0.1205, 0.1307]
+  Router - PopularByCategory  hit@10: +0.0724 [+0.0658, +0.0790] p=0.000
+  Router - PopularByCategory  ndcg@10: +0.0497 [+0.0458, +0.0540] p=0.000
+  Router - ALS                hit@10: +0.0063 [+0.0032, +0.0091] p=0.000
+  Router - ALS                ndcg@10: +0.0055 [+0.0041, +0.0070] p=0.000
+  beyond accuracy Router: {'coverage': 0.0262, 'novelty': 9.6742, 'pop_share': 0.9027}

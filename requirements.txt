@@ -1,0 +1,10 @@
+gensim==4.4.0
+implicit==0.7.3
+lightgbm==4.7.0
+mlxtend==0.25.0
+numpy==2.5.5
+pandas==3.1.1
+pyarrow==26.0.1
+pytest==9.2.0
+scipy==1.18.1
+streamlit==1.67.0
