@@ -83,7 +83,9 @@ def build(cv: CoVisitation, i2v: Item2Vec, items: pd.DataFrame, P, T=None,
             rev.append(p in pos); steps.append(len(prefix) - 1 - pos[p] if p in pos else 99)
             slen.append(len(prefix)); ncv.append(len(cvl))
 
-    f = pd.DataFrame({"qid": qid, "cand": cand, "cv_score": cvs, "cv_rank": cvr, "i2v_rank": i2r,
+    # explicit int dtype: with no candidates at all, an empty list would give an object column
+    # and break the numpy indexing below (single-item session of a product no model knows)
+    f = pd.DataFrame({"qid": np.asarray(qid, dtype=np.int64), "cand": cand, "cv_score": cvs, "cv_rank": cvr, "i2v_rank": i2r,
                       "revisit": rev, "steps_back": steps, "sess_len": slen, "n_cv": ncv})
     f["revisit"] = f["revisit"].astype(int)
     top_cv = f.groupby("qid")["cv_score"].transform("max")

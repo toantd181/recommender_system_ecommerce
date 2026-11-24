@@ -15,7 +15,7 @@ import math
 import pickle
 import sys
 from collections import Counter
-from functools import lru_cache
+from itertools import zip_longest
 from pathlib import Path
 
 import pandas as pd
@@ -33,10 +33,17 @@ def load():
         return pickle.load(f)
 
 
+@st.cache_resource
+def derived():
+    a = load()
+    has_rule = {next(iter(x)) for x in a["fbt"]._prod_idx if len(x) == 1}
+    pop_pct = a["catalog"]["n_events"].rank(ascending=False, pct=True)  # 0..1, small = very popular
+    return has_rule, pop_pct
+
+
 A = load()
 catalog: pd.DataFrame = A["catalog"]
-HAS_RULE = {next(iter(a)) for a in A["fbt"]._prod_idx if len(a) == 1}
-POP_PCT = catalog["n_events"].rank(ascending=False, pct=True)  # 0..1, small = very popular
+HAS_RULE, POP_PCT = derived()
 SUMMARY = json.loads((ROOT / "results" / "summary.json").read_text()) if (ROOT / "results" / "summary.json").exists() else None
 
 # curated cases that show the system well (checked against the catalog below)
@@ -59,8 +66,21 @@ def module_name(key: str) -> str:
 
 
 # ---------------------------------------------------------------- product presentation
-@lru_cache(maxsize=None)
+@st.cache_resource
+def _meta_cache() -> dict:
+    return {}
+
+
 def meta(pid: int) -> dict:
+    """Display fields for a product. Cached across reruns: app.py re-executes on every click, so a
+    functools cache on a function defined here would start empty each time."""
+    cache = _meta_cache()
+    if pid not in cache:
+        cache[pid] = _meta(pid)
+    return cache[pid]
+
+
+def _meta(pid: int) -> dict:
     if pid not in catalog.index:
         return {"pid": pid, "title": f"Sản phẩm #{pid}", "price": 0.0, "icon": "🛍️", "hue": None, "cat": None,
                 "brand": None, "leaf": None, "known": False, "cat_id": None}
@@ -232,15 +252,22 @@ with st.sidebar:
             "- Gợi ý thiên về sản phẩm phổ biến (≈90% nằm trong top 1%, độ phủ catalog ≈2,6%).\n"
             "- “Thường được mua cùng” gồm luật khai phá thật và phần bổ sung theo danh mục; hai phần được tách rõ.")
 
-picker = [p for p in A["demo_products"] if show_unknown or meta(p)["known"]]
-picker = sorted(picker, key=lambda p: (p not in HAS_RULE, -int(catalog.loc[p, "n_events"])))
+@st.cache_resource
+def build_picker(show_unknown: bool) -> list[int]:
+    """Products offered in the pickers: those with a bought-together rule first, then by popularity."""
+    n_events = catalog["n_events"]
+    pk = [p for p in A["demo_products"] if show_unknown or meta(p)["known"]]
+    return sorted(pk, key=lambda p: (p not in HAS_RULE, -int(n_events[p])))
+
+
+picker = build_picker(show_unknown)
 ex_session = [p for p in EX_SESSION if p in picker]
 ex_cart = [p for p in EX_CART if p in catalog.index]
 st.session_state.setdefault("session", [p for p in ex_session])
 st.session_state["session"] = [p for p in st.session_state["session"] if p in picker]
 
 tab_home, tab_product, tab_cart, tab_eval = st.tabs(
-    ["🏠 Trang chủ", "📦 Trang sản phẩm", "🛒 Giỏ hàng", "📊 Đánh giá"])
+    ["🏠 Trang chủ", "📦 Trang sản phẩm", "🛒 Giỏ hàng", "📊 Đánh giá"], key=f"tabs_{user_type}")
 
 @st.cache_data
 def light_users_by_info() -> list[int]:
@@ -293,10 +320,11 @@ with tab_home:
             seen = st.multiselect("Sản phẩm vừa xem (tuỳ chọn, ưu tiên hơn danh mục)", picker, format_func=label,
                                   placeholder="Chọn sản phẩm…")
         seeds, via = list(seen), "sản phẩm bạn vừa xem"
+        seed_groups = [seeds]
         if not seeds:
-            for c in fav:
-                seeds += catalog[catalog["main_category"] == c]["n_events"].nlargest(3).index.tolist()
-            via = "sản phẩm bán chạy của danh mục bạn chọn"
+            seed_groups = [catalog[catalog["main_category"] == c]["n_events"].nlargest(3).index.tolist() for c in fav]
+            seeds = [p for g in seed_groups for p in g]
+            via = "sản phẩm bán chạy của từng danh mục bạn chọn (xen kẽ giữa các danh mục)"
         pipeline("Thành viên mới (ít/không có lịch sử)", "Content-based", "Cosine(danh mục · thương hiệu · tầm giá)")
         if not seeds:
             section("Đang thịnh hành", "Trending 7 ngày", "Chọn danh mục hoặc sản phẩm để cá nhân hoá.")
@@ -304,7 +332,26 @@ with tab_home:
         else:
             section("Gợi ý cho thành viên mới", "Content-based", f"Hồ sơ được dựng từ {via}; điểm cộng cho sản phẩm đang phổ biến.")
             items = []
-            for p, _ in A["content"].recommend_from_items(seeds, k, exclude=seeds):
+            # a single averaged profile lets the biggest category take every slot, and the popularity
+            # prior pulls electronics into small categories (stationery alone got 0/10 stationery);
+            # so rank each chosen category separately, keep its own products first, then take turns.
+            # The model only scores its candidate pool (5,000 popular recent products, which holds 0-14
+            # items of the small categories), so a category it cannot fill is topped up with that
+            # category's best sellers from the full catalog.
+            def ranked(group, cat_=None):
+                pool = A["content"].cand_ids
+                r = [p for p, _ in A["content"].recommend_from_items(group, len(pool), exclude=seeds)]
+                if cat_ is None:
+                    return r[:k]
+                own = [p for p in r if meta(p)["cat"] == cat_]
+                if len(own) < k:
+                    best = catalog[catalog["main_category"] == cat_]["n_events"].nlargest(k + len(seeds)).index
+                    own += [p for p in best if p not in seeds and p not in own][:k - len(own)]
+                rest = [p for p in r if meta(p)["cat"] != cat_]
+                return (own + rest)[:k]
+            lists = [ranked(g, c) for g, c in zip(seed_groups, fav if not seen else [None]) if g]
+            merged = list(dict.fromkeys(p for tier in zip_longest(*lists) for p in tier if p is not None))[:k]
+            for p in merged:
                 badges, note = match_badges(p, seeds)
                 items.append({"pid": p, "badges": badges or [("Phổ biến", "orange")], "note": note})
             grid(items, "nm")
@@ -448,7 +495,7 @@ with tab_eval:
             st.markdown("**HitRate@10 theo nhóm người dùng**")
             grp = pd.DataFrame({n: {k_: g[n][k_]["hit@10"] for k_ in ("unseen", "light", "heavy")} for n in names})
             grp.index = ["1. Chưa có lịch sử", "2. Ít lịch sử (1–4)", "3. Nhiều lịch sử (≥5)"]
-            st.bar_chart(grp, stack=False)
+            st.bar_chart(grp, stack=False, horizontal=True, sort=False)
         with c2:
             st.markdown("**Bộ định tuyến chọn mô-đun**")
             st.table(pd.DataFrame({"Nhóm": ["Chưa có lịch sử", "Ít lịch sử", "Nhiều lịch sử"],

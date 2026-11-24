@@ -85,3 +85,6 @@ def test_session_ltr_end_to_end():
     recs = m.recommend_session([11, 12, 11], k=5)
     assert len(recs) == 5 and recs[0][2] == "Bạn đã xem trước đó" and recs[0][0] == 12
     assert len(m.recommend_session([], k=3)) == 3
+    # a product no candidate model knows: falls back to popular items instead of crashing
+    recs = m.recommend_session([999], k=3)
+    assert len(recs) == 3 and 999 not in [p for p, _, _ in recs]
