@@ -7,7 +7,7 @@ Gồm 4 việc trong mục 6 của `BAO_CAO_TIEN_DO.md`: khung đánh giá + bas
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install pandas numpy pyarrow scipy mlxtend gensim streamlit pytest
+.venv/bin/pip install -r requirements.txt   # pandas, implicit, lightgbm, gensim, mlxtend, streamlit, ...
 
 # 1. Lấy mẫu 5% người dùng tháng 11, đọc thẳng từ zip (không cần giải nén 14,7 GB)
 .venv/bin/python src/make_sample.py archive.zip 2019-Nov.csv data/nov_u5.parquet --pct 5
@@ -17,8 +17,8 @@ python3 -m venv .venv
 .venv/bin/python src/run_fbt.py       data/nov_u5.parquet
 .venv/bin/python src/run_item2vec.py  data/nov_u5.parquet
 
-# 3. Demo
-.venv/bin/python src/build_artifacts.py data/nov_u5.parquet artifacts/
+# 3. Demo (xem mục "Demo Streamlit" bên dưới)
+OPENBLAS_NUM_THREADS=1 .venv/bin/python src/build_artifacts.py --nov data/nov_u5.parquet --octnov data/octnov_u5.parquet
 .venv/bin/streamlit run app.py
 
 # Test
@@ -94,18 +94,15 @@ train, test = temporal_split(load_events("data/nov_u5.parquet"), "2019-11-24")
 print(evaluate(MyModel(), train, test))   # bảng theo nhóm unseen / light / heavy
 ```
 
-Trong demo (`app.py`), hai chỗ đang dùng bản tạm, có ghi nhãn trên giao diện:
-- `old_member_recs`: thay `A["old_member"]` (đang là `PopularByCategory`) bằng ALS.
-- `new_member_recs`: thay bằng mô-đun content-based.
-
-Thêm mô hình vào dict `models` trong `src/build_artifacts.py` rồi build lại artifacts.
+Thêm mô hình vào dict `models` trong `src/build_artifacts.py` rồi build lại artifacts; demo đọc mô hình
+từ `artifacts/models.pkl`.
 
 ## Lưu ý
 
 - Chưa xử lý đột biến 14–17/11 (việc của Dương); 7 ngày dùng cho baseline phổ biến
   (17–23/11) có chứa ngày 17/11.
 - Khung đánh giá chưa có tùy chọn loại sản phẩm đã tương tác ở train; có thể cần cho ALS.
-- `data/`, `artifacts/` (~186 MB), `archive.zip` không đưa lên Git.
+- `data/`, `artifacts/` (~430 MB), `archive.zip` không đưa lên Git.
 
 ## ALS cho thành viên cũ (Dương)
 
@@ -128,16 +125,37 @@ PYTHONPATH=src OPENBLAS_NUM_THREADS=1 .venv/bin/python src/run_router.py   # →
 - `src/router.py`: `HybridRouter` (chọn mô-đun theo nhóm `unseen`/`light`/`heavy`), `RankFusion` (hợp nhất theo thứ hạng).
 - `src/build_artifacts.py` đọc `results/router.json` (ALS, content-based, lựa chọn mô-đun) và demo `app.py` dùng router.
 
-## Demo Streamlit (giao diện mới)
+## Demo Streamlit
 
 ```bash
-.venv/bin/python src/build_artifacts.py     # huấn luyện mọi mô hình → artifacts/models.pkl (không đưa lên Git)
-.venv/bin/python src/make_summary.py        # gom số liệu test cho tab "Đánh giá" → results/summary.json
-.venv/bin/streamlit run app.py
+OPENBLAS_NUM_THREADS=1 .venv/bin/python src/build_artifacts.py --nov data/nov_u5.parquet --octnov data/octnov_u5.parquet
+                                            # huấn luyện mọi mô hình → artifacts/models.pkl (~430 MB, ~5 phút, không đưa lên Git)
+.venv/bin/python src/make_summary.py        # gom số liệu test cho trang "Đánh giá" → results/summary.json
+.venv/bin/streamlit run app.py              # http://localhost:8501
 ```
 
-- Dữ liệu không có tên/ảnh sản phẩm nên mỗi sản phẩm là một thẻ: tên sinh từ thương hiệu + danh mục, ô màu theo danh mục, giá, độ phổ biến.
-- Mỗi gợi ý kèm **bằng chứng thật** thay cho điểm mô hình (không so sánh được giữa các mô-đun): thuộc tính trùng với sản phẩm gốc (danh mục / thương hiệu / tầm giá), "Đã xem / Đã mua / Mới" với người dùng cũ, "% khách mua cùng" với FP-Growth.
-- "Thường được mua cùng" tách luật khai phá thật khỏi phần bổ sung theo danh mục; có thể thêm vào giỏ từ mọi thẻ.
-- Người dùng cũ chọn được 3 nhóm (nhiều lịch sử / ít lịch sử / chưa có lịch sử) để thấy bộ định tuyến chọn mô-đun khác nhau.
-- Tab "Đánh giá" đọc `results/summary.json`; mục "Giới hạn của demo" ở thanh bên nêu các hạn chế của đánh giá offline.
+Hai trang (thanh điều hướng trên cùng):
+
+**🛍️ Cửa hàng** – mô phỏng một lượt mua sắm, chọn vai trò ở đầu trang:
+- *Khách vãng lai*: bấm **Xem** trên bất kỳ thẻ nào → mở hộp xem nhanh (sản phẩm tương tự Item2Vec, mua cùng FP-Growth,
+  thêm vào giỏ) và ghi lượt xem vào **phiên** (dải chip phía trên, bỏ từng lượt được). Mọi kệ gợi ý xếp lại theo phiên
+  bằng mô hình theo phiên (mặc định LightGBM re-ranker). "Tìm sản phẩm" để xem một mã cụ thể.
+- **Đăng ký thành viên với phiên này**: khách thành *thành viên mới*, hồ sơ content-based dựng từ các sản phẩm vừa xem
+  (cold-start hand-off). Không có phiên thì dùng danh mục yêu thích, mỗi danh mục xếp riêng rồi xen kẽ.
+- *Thành viên cũ*: chọn tài khoản (nhiều / ít / chưa có lịch sử); bộ định tuyến chọn mô-đun theo nhóm, mỗi thẻ có nhãn
+  thứ hạng trong ALS và content-based; nếu đang có phiên thì thêm kệ "Tiếp tục phiên".
+- Khung **"Hệ thống đã làm gì"**: nhóm người dùng → luật định tuyến → mô-đun → nguồn ứng viên, kèm thời gian chạy
+  (tắt được ở thanh bên).
+- Cột **giỏ hàng** bên phải với gợi ý "Mua kèm" từ luật FP-Growth.
+
+**📊 Đánh giá** – số liệu test từ `results/summary.json`: mỗi phần của hệ lai so với baseline, theo nhóm người dùng,
+có khoảng tin cậy 95%.
+
+Ghi chú:
+- Sản phẩm, giá, thương hiệu, danh mục, lịch sử người dùng đều là dữ liệu REES46 thật; dữ liệu không có tên/ảnh nên
+  tên hiển thị = thương hiệu + danh mục, biểu tượng và màu ô theo danh mục.
+- Mỗi gợi ý kèm **bằng chứng thật** (thuộc tính trùng, "Đã xem / Mới", "% khách mua cùng", thứ hạng trong mô hình thành phần)
+  thay cho điểm mô hình, vốn không so sánh được giữa các mô-đun.
+- Thanh bên (mở bằng » góc trên trái): số gợi ý K, mô hình theo phiên, bật/tắt khung giải thích, "Giới hạn của demo".
+- Giao diện: `.streamlit/config.toml` (màu, phông Be Vietnam Pro tải từ Google Fonts; không có mạng thì dùng phông mặc định).
+- `tests/test_app.py` chạy thử các luồng chính của demo (bỏ qua nếu chưa build artifacts).
