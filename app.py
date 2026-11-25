@@ -174,6 +174,52 @@ def build_picker(show_unknown: bool) -> list[int]:
     return sorted(pk, key=lambda p: (p not in HAS_RULE, -int(n_events[p])))
 
 
+# ---------------------------------------------------------------- look & feel
+# Colours use translucent fills so the same rules read well in light and dark themes.
+CSS = """<style>
+[data-testid="stMainBlockContainer"]{padding-top:4.4rem;max-width:1560px}
+/* product grid: fills the row evenly instead of fixed-width cards leaving a gap on the right */
+[class*="st-key-shelf_"]{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:.7rem}
+[class*="st-key-shelf_"] > div{width:auto !important;min-width:0}
+[class*="st-key-rowgrid_"]{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:.5rem}
+[class*="st-key-card_"]{transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;height:100%;
+  justify-content:space-between}
+[class*="st-key-card_"]:hover{transform:translateY(-2px);border-color:rgba(99,102,241,.55) !important;
+  box-shadow:0 6px 18px rgba(0,0,0,.12)}
+/* sticky cart column */
+[data-testid="stColumn"]:has([class*="st-key-cartpanel"]){align-self:stretch}
+[class*="st-key-cartpanel"]{position:sticky;top:4.2rem}
+.rs-brand{display:flex;align-items:center;gap:12px}
+.rs-logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;
+  background:linear-gradient(135deg,rgba(99,102,241,.9),rgba(236,72,153,.85))}
+.rs-name{font-size:21px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+.rs-sub{font-size:12.5px;opacity:.65}
+.rs-sec{display:flex;align-items:center;gap:8px;margin-top:.6rem}
+.rs-sec-t{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.rs-pill{font-size:11.5px;padding:2px 9px;border-radius:999px;background:rgba(127,127,127,.14);opacity:.85}
+.rs-sec-c{font-size:13px;opacity:.68;margin-top:2px}
+.rs-tile{position:relative;height:58px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:27px}
+.rs-rank{position:absolute;top:6px;left:7px;font-size:11px;font-weight:700;min-width:20px;height:20px;padding:0 5px;
+  border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);color:#fff}
+.rs-leaf{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-title{font-weight:600;font-size:14px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-price{font-size:21px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.rs-meta{font-size:11.5px;opacity:.68;margin:1px 0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-note{font-size:11.5px;opacity:.75}
+.rs-pipe{border:1px solid rgba(127,127,127,.25);border-radius:12px;padding:10px 12px;
+  background:linear-gradient(90deg,rgba(99,102,241,.07),rgba(236,72,153,.04))}
+.rs-pipe-h{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;opacity:.7;margin-bottom:8px}
+.rs-ms{text-transform:none;letter-spacing:0;font-weight:500}
+.rs-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.rs-step{padding:8px 10px;border-radius:9px;background:rgba(127,127,127,.08)}
+.rs-step-h{display:flex;align-items:center;gap:6px;font-size:11.5px;opacity:.72;margin-bottom:3px}
+.rs-num{width:17px;height:17px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:700;color:#fff;background:rgba(99,102,241,.95)}
+.rs-step-b{font-size:13.5px;font-weight:600;line-height:1.35}
+</style>"""
+
+
 # ---------------------------------------------------------------- state + actions
 ss = st.session_state
 ss.setdefault("persona", GUEST)
@@ -243,21 +289,21 @@ def sign_out():
 
 # ---------------------------------------------------------------- building blocks
 def section(title: str, source: str, caption: str | None = None):
-    st.markdown(f"#### {title} :gray-badge[{source}]")
-    if caption:
-        st.caption(caption)
+    st.html(f"<div class='rs-sec'><span class='rs-sec-t'>{esc(title)}</span><span class='rs-pill'>{esc(source)}</span></div>"
+            + (f"<div class='rs-sec-c'>{esc(caption)}</div>" if caption else ""))
 
 
 def card(pid: int, badges, note: str | None, key: str, rank: int):
     m = meta(pid)
-    with st.container(border=True, width=212):
-        st.html(tile(m)
-                + f"<div style='min-height:118px;margin-top:6px'>"
-                  f"<div style='font-weight:600;font-size:14px;line-height:1.3'>{rank}. {esc(m['title'])}</div>"
-                  f"<div style='font-size:21px;font-weight:700;margin:1px 0'>{money(m['price'])}</div>"
-                  f"<div style='font-size:11.5px;opacity:.6;margin-bottom:4px'>#{pid} · {popularity(pid)}</div>"
-                  f"<div>{badge_html(badges)}</div>"
-                  + (f"<div style='font-size:11.5px;opacity:.7'>{esc(note)}</div>" if note else "") + "</div>")
+    bg = f"hsl({m['hue']} 60% 55% / .20)" if m["hue"] is not None else "hsl(0 0% 50% / .14)"
+    with st.container(border=True, key=f"card_{key}_{pid}"):
+        st.html(f"<div class='rs-tile' style='background:{bg}'><span class='rs-rank'>{rank}</span>{m['icon']}</div>"
+                f"<div class='rs-title'>{esc(m['brand'] or m['title'])}</div>"
+                f"<div class='rs-leaf'>{esc(m['leaf'] or 'Chưa rõ danh mục')}</div>"
+                f"<div class='rs-price'>{money(m['price'])}</div>"
+                f"<div class='rs-meta' title='{esc(popularity(pid))}'>#{pid} · {popularity(pid).replace(' phổ biến', '')}</div>"
+                f"<div class='rs-badges'>{badge_html(badges)}</div>"
+                + (f"<div class='rs-note'>{esc(note)}</div>" if note else ""))
         with st.container(horizontal=True, gap="small"):
             st.button("Xem", icon=":material/visibility:", key=f"v_{key}_{pid}", on_click=view, args=(pid,),
                       width="stretch")
@@ -266,8 +312,8 @@ def card(pid: int, badges, note: str | None, key: str, rank: int):
 
 
 def shelf(items, key: str):
-    """items: [{'pid', 'badges', 'note'}] -> cards that wrap to the width of the page."""
-    with st.container(horizontal=True, wrap=True, gap="small"):
+    """items: [{'pid', 'badges', 'note'}] -> a responsive grid of cards (CSS grid on the keyed container)."""
+    with st.container(key=f"shelf_{key}"):
         for i, it in enumerate(items, 1):
             card(it["pid"], it.get("badges", []), it.get("note"), key, i)
 
@@ -290,20 +336,14 @@ def mini_row(pid: int, badges, key: str, action: str = "view"):
 
 
 def explain(steps, ms: float | None):
-    """'What did the system do' panel: user -> router -> module -> candidates."""
+    """'What did the system do' panel: user -> router -> module -> candidates, drawn as a pipeline."""
     if not ss.get("explain", True):
         return
-    with st.container(border=True):
-        with st.container(horizontal=True, gap="medium", vertical_alignment="top"):
-            for i, (head, body) in enumerate(steps):
-                if i:
-                    st.markdown("<div style='opacity:.4;font-size:20px;padding-top:6px'>→</div>", unsafe_allow_html=True,
-                                width="content")
-                st.markdown(f"<div style='font-size:12px;opacity:.65'>{esc(head)}</div>"
-                            f"<div style='font-size:14px;font-weight:600;line-height:1.35'>{body}</div>",
-                            unsafe_allow_html=True)
-        if ms is not None:
-            st.caption(f"⏱ {ms:.0f} ms để tạo gợi ý")
+    cells = "".join(f"<div class='rs-step'><div class='rs-step-h'><span class='rs-num'>{i}</span>{esc(head)}</div>"
+                    f"<div class='rs-step-b'>{esc(body)}</div></div>" for i, (head, body) in enumerate(steps, 1))
+    timing = f"<div class='rs-ms'>⏱ {ms:.0f} ms</div>" if ms is not None else ""
+    st.html(f"<div class='rs-pipe'><div class='rs-pipe-h'>Hệ thống đã làm gì{timing}</div>"
+            f"<div class='rs-steps'>{cells}</div></div>")
 
 
 def fbt_split(query, k_=10):
@@ -413,7 +453,10 @@ def session_shelf(k: int, engine: str, title: str | None = None):
     if back:
         section("Xem lại", ENGINE_NAME[engine],
                 "Khoảng 14% sản phẩm khách xem tiếp theo là sản phẩm đã xem trước đó nên mô hình xếp chúng lại.")
-        shelf([{"pid": p, "badges": [("Xem lại", "gray")]} for p, _ in back], "b")
+        with st.container(key="rowgrid_back"):
+            for p, _ in back:
+                with st.container(border=True):
+                    mini_row(p, [("Xem lại", "gray")], "b")
     src = Counter(REASON_BADGE.get(r, (r,))[0] for _, _, r in recs)
     return src, ms
 
@@ -534,7 +577,7 @@ def cart_panel(k: int):
     """Own fragment: removing an item or adding a suggestion only re-runs this panel."""
     show_flash()
     cart = ss.cart
-    with st.container(border=True):
+    with st.container(border=True, key="cartpanel"):
         total = sum(meta(p)["price"] for p in cart)
         st.markdown(f"**🛒 Giỏ hàng** · {len(cart)} sản phẩm" + (f" · **{money(total)}**" if cart else ""))
         for p in cart:
@@ -593,7 +636,11 @@ def quick_view(k: int):
 
 
 # ---------------------------------------------------------------- pages
+PERSONA_LABEL = {GUEST: "👤 Khách vãng lai", NEW: "✨ Thành viên mới", MEMBER: "⭐ Thành viên cũ"}
+
+
 def shop():
+    st.html(CSS)
     show_flash()
     with st.sidebar:
         st.header("Cài đặt")
@@ -614,8 +661,11 @@ def shop():
                 "- Gợi ý thiên về sản phẩm phổ biến (≈90% nằm trong top 1%, độ phủ catalog ≈2,6%).\n"
                 "- “Mua kèm” gồm luật khai phá thật và phần bổ sung theo danh mục; hai phần được tách rõ.")
 
-    with st.container(horizontal=True, vertical_alignment="center"):
-        st.segmented_control("Bạn là ai?", PERSONAS, key="persona", label_visibility="collapsed", required=True)
+    with st.container(horizontal=True, vertical_alignment="center", gap="large"):
+        st.html("<div class='rs-brand'><div class='rs-logo'>🛍️</div><div><div class='rs-name'>RecShop</div>"
+                "<div class='rs-sub'>Demo hệ gợi ý lai · dữ liệu REES46 tháng 11/2019</div></div></div>", width="content")
+        st.segmented_control("Bạn là ai?", PERSONAS, key="persona", label_visibility="collapsed", required=True,
+                             format_func=PERSONA_LABEL.get)
         persona = ss.persona or GUEST
         st.space("stretch")
         if persona == GUEST:
@@ -636,6 +686,7 @@ def shop():
 
 
 def evaluation():
+    st.html(CSS)
     st.title("📊 Đánh giá offline")
     if not SUMMARY:
         st.info("Chưa có `results/summary.json`. Chạy `python src/make_summary.py`.")

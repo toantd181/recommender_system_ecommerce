@@ -1,0 +1,7 @@
+[theme]
+primaryColor = "#6366F1"
+baseRadius = "medium"
+font = "'Be Vietnam Pro':https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+
+[browser]
+gatherUsageStats = false
