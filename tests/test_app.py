@@ -58,4 +58,4 @@ def test_evaluation_page():
     at._page_hash = calc_hash("danh-gia")
     at.run()
     assert not at.exception
-    assert any("Đánh giá offline" in t.value for t in at.title)
+    assert len(at.metric) == 4  # headline numbers: members, guests, bought-together, test users

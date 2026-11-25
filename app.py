@@ -24,13 +24,14 @@ from collections import Counter
 from itertools import zip_longest
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "src"))  # classes must be importable to unpickle
 
-st.set_page_config(page_title="Hệ gợi ý lai · TMĐT", page_icon="🛍️", layout="wide")
+st.set_page_config(page_title="Hệ gợi ý lai · TMĐT", page_icon="🛍️", layout="wide", initial_sidebar_state="collapsed")
 
 
 @st.cache_resource
@@ -181,6 +182,9 @@ CSS = """<style>
 /* product grid: fills the row evenly instead of fixed-width cards leaving a gap on the right */
 [class*="st-key-shelf_"]{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:.7rem}
 [class*="st-key-shelf_"] > div{width:auto !important;min-width:0}
+[class*="st-key-shelf_"] > div{height:100%}
+/* equal-height cards: the text block grows, so the buttons line up at the bottom of every card in a row */
+[class*="st-key-card_"] > [data-testid="stElementContainer"]:first-child{flex:1 1 auto}
 [class*="st-key-rowgrid_"]{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:.5rem}
 [class*="st-key-card_"]{transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;height:100%;
   justify-content:space-between}
@@ -444,12 +448,16 @@ def trail_bar(picker):
 
 def session_shelf(k: int, engine: str, title: str | None = None):
     """Next-item recommendations from the trail. Returns (steps, ms) for the explain panel."""
-    recs, ms = session_recs(engine, tuple(ss.trail), k)
-    new = [(p, r) for p, _, r in recs if r != "Bạn đã xem trước đó"]
+    # ask for extra so that K *new* products remain after the revisits are split off (no half-empty grid row)
+    recs, ms = session_recs(engine, tuple(ss.trail), k + min(len(set(ss.trail)), 10))
+    new = [(p, r) for p, _, r in recs if r != "Bạn đã xem trước đó"][:k]
     back = [(p, r) for p, _, r in recs if r == "Bạn đã xem trước đó"]
     last = meta(ss.trail[-1])
-    section(title or "Gợi ý cho phiên hiện tại", ENGINE_NAME[engine], f"Sau {last['title']} · xếp theo mức phù hợp giảm dần.")
-    shelf([{"pid": p, "badges": [REASON_BADGE.get(r, (r, "gray"))]} for p, r in new], "s")
+    badges = [REASON_BADGE.get(r, (r, "gray")) for _, r in new]
+    shared = len(new) > 1 and len(set(badges)) == 1  # same evidence on every card: say it once
+    caption = f"Sau {last['title']} · xếp theo mức phù hợp giảm dần" + (f" · tất cả: {badges[0][0].lower()}." if shared else ".")
+    section(title or "Gợi ý cho phiên hiện tại", ENGINE_NAME[engine], caption)
+    shelf([{"pid": p, "badges": [] if shared else [b]} for (p, _), b in zip(new, badges)], "s")
     if back:
         section("Xem lại", ENGINE_NAME[engine],
                 "Khoảng 14% sản phẩm khách xem tiếp theo là sản phẩm đã xem trước đó nên mô hình xếp chúng lại.")
@@ -457,7 +465,7 @@ def session_shelf(k: int, engine: str, title: str | None = None):
             for p, _ in back:
                 with st.container(border=True):
                     mini_row(p, [("Xem lại", "gray")], "b")
-    src = Counter(REASON_BADGE.get(r, (r,))[0] for _, _, r in recs)
+    src = Counter(REASON_BADGE.get(r, (r,))[0] for _, r in new + back)
     return src, ms
 
 
@@ -685,42 +693,114 @@ def shop():
         quick_view(k)
 
 
+ACCENT, MUTED = "#6366F1", "#A1A1AA"
+NICE = {"covisit (chosen)": "Co-visitation", "hybrid share=2": "Co-visitation → Item2Vec",
+        "hybrid + 1 revisit first": "Lai + ưu tiên 1 sản phẩm xem lại", "hybrid + 3 revisits first": "Lai + ưu tiên 3 sản phẩm xem lại",
+        "LTR re-ranker": "LightGBM re-ranker", "fbt (same-cat first)": "FP-Growth (ưu tiên cùng danh mục)",
+        "fbt (cat-rules first)": "FP-Growth (luật danh mục trước)", "popular_same_cat": "Phổ biến cùng danh mục",
+        "popular_global": "Phổ biến toàn sàn", "PopularByCategory": "Phổ biến theo danh mục", "ContentBased": "Content-based",
+        "ALS": "ALS", "Router": "Router (hệ lai)"}
+
+
+def parse_ci(text: str) -> tuple[float, float, float]:
+    """'0.2615 [0.2570, 0.2662]' -> (0.2615, 0.2570, 0.2662)"""
+    v, rest = str(text).split("[")
+    lo, hi = rest.strip("] ").split(",")
+    return float(v), float(lo), float(hi)
+
+
+def ci_bars(rows, best: str, height: int = 230):
+    """Horizontal bars with 95% CI whiskers; the winning system in the accent colour, the rest muted."""
+    df = pd.DataFrame(rows, columns=["key", "v", "lo", "hi"])
+    df["name"] = df["key"].map(lambda x: NICE.get(x, x))
+    df["best"] = df["key"] == best
+    order = df.sort_values("v", ascending=False)["name"].tolist()
+    y = alt.Y("name:N", sort=order, title=None, axis=alt.Axis(labelLimit=260))
+    base = alt.Chart(df).encode(y=y)
+    bars = base.mark_bar(cornerRadiusEnd=4, height=18).encode(
+        x=alt.X("v:Q", title="HitRate@10", scale=alt.Scale(domain=[0, float(df["hi"].max()) * 1.18])),
+        color=alt.Color("best:N", scale=alt.Scale(domain=[True, False], range=[ACCENT, MUTED]), legend=None),
+        tooltip=[alt.Tooltip("name:N", title="Hệ thống"), alt.Tooltip("v:Q", format=".3f", title="HitRate@10"),
+                 alt.Tooltip("lo:Q", format=".3f", title="CI thấp"), alt.Tooltip("hi:Q", format=".3f", title="CI cao")])
+    whisk = base.mark_rule(strokeWidth=1.5, opacity=.55).encode(x="lo:Q", x2="hi:Q")
+    # label colour follows the bar (Vega's default black text disappears on the dark theme)
+    text = base.mark_text(align="left", dx=6, fontSize=12, fontWeight=700).encode(
+        x="hi:Q", text=alt.Text("v:Q", format=".3f"),
+        color=alt.Color("best:N", scale=alt.Scale(domain=[True, False], range=[ACCENT, MUTED]), legend=None))
+    st.altair_chart((bars + whisk + text).properties(height=height), width="stretch")
+
+
 def evaluation():
     st.html(CSS)
-    st.title("📊 Đánh giá offline")
+    st.html("<div class='rs-brand'><div class='rs-logo'>📊</div><div><div class='rs-name'>Đánh giá offline</div>"
+            "<div class='rs-sub'>Mỗi phần của hệ lai so với baseline mạnh nhất của nó</div></div></div>")
     if not SUMMARY:
         st.info("Chưa có `results/summary.json`. Chạy `python src/make_summary.py`.")
         return
-    st.caption(f"Kết quả offline trên tuần test {SUMMARY['test_window']} (mẫu 5% người dùng). "
-               "Mọi tham số được chọn trên tuần validation; test chạy đúng một lần. Khoảng tin cậy 95% bootstrap.")
     g, ci = SUMMARY["router"]["groups"], SUMMARY["router"]["ci"]
-    section("Gợi ý cho người dùng đăng nhập", "Router vs baseline", f"{g['Router']['all']['n_users']:,} người dùng có thêm giỏ/mua ở tuần test.")
-    names = ["PopularByCategory", "ContentBased", "ALS", "Router"]
-    st.dataframe(pd.DataFrame({
-        "Mô hình": [("★ " if n == "Router" else "") + n for n in names],
-        "HitRate@10": [f"{ci[n]['hit@10'][0]:.3f} [{ci[n]['hit@10'][1]:.3f}; {ci[n]['hit@10'][2]:.3f}]" for n in names],
-        "NDCG@10": [f"{ci[n]['ndcg@10'][0]:.3f}" for n in names]}), hide_index=True, width="stretch")
-    c1, c2 = st.columns(2)
+    sess = {k_: parse_ci(v) for k_, v in SUMMARY["session"]["hit@10"].items()}
+    fbt = {k_: parse_ci(v) for k_, v in SUMMARY["fbt"].items()}
+    s_best = max(sess, key=lambda x: sess[x][0])
+    f_best = max(fbt, key=lambda x: fbt[x][0])
+    s_base = next(iter(sess))  # first row = the chosen single-model baseline
+    f_base = "popular_same_cat" if "popular_same_cat" in fbt else min(fbt, key=lambda x: fbt[x][0])
+    st.caption(f"Tuần test {SUMMARY['test_window']} · mẫu 5% người dùng · tham số chọn trên tuần validation, test chạy "
+               "đúng một lần · khoảng tin cậy 95% bootstrap.")
+
+    r, b = ci["Router"]["hit@10"][0], ci["PopularByCategory"]["hit@10"][0]
+    k1, k2, k3, k4 = st.columns(4)
+    def kpi(col, title, v, base, base_name):
+        col.metric(title, f"{v:.3f}", f"+{v - base:.3f} ({v / base - 1:+.0%}) vs baseline", border=True,
+                   help=f"Baseline: {base_name} = {base:.3f} (HitRate@10)")
+    kpi(k1, "Thành viên · Router", r, b, "phổ biến theo danh mục")
+    kpi(k2, "Khách · LightGBM re-ranker", sess[s_best][0], sess[s_base][0], NICE.get(s_base, s_base))
+    kpi(k3, "Mua cùng · FP-Growth", fbt[f_best][0], fbt[f_base][0], NICE.get(f_base, f_base))
+    n_all, n_unseen = g["Router"]["all"]["n_users"], g["Router"]["unseen"]["n_users"]
+    k4.metric("Người dùng test có thêm giỏ/mua", f"{n_all:,}", f"{n_unseen / n_all:.0%} chưa có lịch sử",
+              delta_color="off", border=True)
+
+    section("Người dùng đăng nhập", "Router vs từng mô-đun",
+            "Bộ định tuyến gửi mỗi nhóm tới mô-đun tốt nhất của nhóm đó trên tuần validation.")
+    c1, c2 = st.columns([3, 2], gap="large")
     with c1:
-        st.markdown("**HitRate@10 theo nhóm người dùng**")
-        grp = pd.DataFrame({n: {k_: g[n][k_]["hit@10"] for k_ in ("unseen", "light", "heavy")} for n in names})
-        grp.index = ["1. Chưa có lịch sử", "2. Ít lịch sử (1–4)", "3. Nhiều lịch sử (≥5)"]
-        st.bar_chart(grp, stack=False, horizontal=True, sort=False)
+        names = ["Router", "ALS", "ContentBased", "PopularByCategory"]
+        groups = {"unseen": "Chưa có lịch sử", "light": "Ít lịch sử (1–4)", "heavy": "Nhiều lịch sử (≥5)", "all": "Tất cả"}
+        df = pd.DataFrame([{"Nhóm": groups[gr], "Mô hình": NICE[n], "HitRate@10": g[n][gr]["hit@10"]}
+                           for gr in groups for n in names])
+        colors = [ACCENT, "#A5B4FC", "#C7D2FE", MUTED]
+        order = [NICE[n] for n in names]
+        chart = alt.Chart(df).mark_bar(cornerRadiusEnd=3).encode(
+            y=alt.Y("Nhóm:N", sort=list(groups.values()), title=None,
+                    axis=alt.Axis(labelFontWeight="bold", labelLimit=200, labelPadding=8)),
+            yOffset=alt.YOffset("Mô hình:N", sort=order),
+            x=alt.X("HitRate@10:Q", title="HitRate@10"),
+            color=alt.Color("Mô hình:N", sort=order, scale=alt.Scale(domain=order, range=colors),
+                            legend=alt.Legend(orient="bottom", title=None, labelLimit=240, columns=4)),
+            tooltip=["Nhóm", "Mô hình", alt.Tooltip("HitRate@10:Q", format=".3f")],
+        ).properties(height=330)
+        st.altair_chart(chart, width="stretch")
     with c2:
-        st.markdown("**Bộ định tuyến chọn mô-đun**")
-        st.table(pd.DataFrame({"Nhóm": ["Chưa có lịch sử", "Ít lịch sử", "Nhiều lịch sử"],
-                               "Mô-đun": [module_name(SUMMARY["routing"][x]) for x in ("unseen", "light", "heavy")],
-                               "Người dùng": [f"{g['Router'][x]['n_users']:,}" for x in ("unseen", "light", "heavy")]}))
-    c3, c4 = st.columns(2)
+        st.dataframe(pd.DataFrame({
+            "Mô hình": [NICE[n] for n in names],
+            "HitRate@10": [ci[n]["hit@10"][0] for n in names],
+            "CI 95%": [f"{ci[n]['hit@10'][1]:.3f} – {ci[n]['hit@10'][2]:.3f}" for n in names],
+            "NDCG@10": [ci[n]["ndcg@10"][0] for n in names]}), hide_index=True, width="stretch",
+            column_config={"HitRate@10": st.column_config.ProgressColumn(format="%.3f", min_value=0, max_value=0.3),
+                           "NDCG@10": st.column_config.NumberColumn(format="%.3f")})
+        st.dataframe(pd.DataFrame({
+            "Nhóm": ["Chưa có lịch sử", "Ít lịch sử", "Nhiều lịch sử"],
+            "Mô-đun được chọn": [module_name(SUMMARY["routing"][x]) for x in ("unseen", "light", "heavy")],
+            "Người dùng": [g["Router"][x]["n_users"] for x in ("unseen", "light", "heavy")]}), hide_index=True, width="stretch")
+
+    c3, c4 = st.columns(2, gap="large")
     with c3:
-        section("Khách vãng lai", "đoán sản phẩm tiếp theo trong phiên")
-        st.dataframe(pd.DataFrame({"Mô hình": list(SUMMARY["session"]["hit@10"]),
-                                   "HitRate@10": list(SUMMARY["session"]["hit@10"].values())}), hide_index=True, width="stretch")
-        st.caption(f"Trần của mọi bộ xếp hạng lại (candidate recall): {SUMMARY['session']['candidate_recall']:.3f}")
+        section("Khách vãng lai", "đoán sản phẩm tiếp theo trong phiên",
+                f"Trần của mọi bộ xếp hạng lại (candidate recall): {SUMMARY['session']['candidate_recall']:.3f}")
+        ci_bars([(k_, *v) for k_, v in sess.items()], s_best)
     with c4:
-        section("Thường được mua cùng", "leave-one-out trên giỏ hàng test")
-        st.dataframe(pd.DataFrame({"Hệ thống": list(SUMMARY["fbt"]), "HitRate@10": list(SUMMARY["fbt"].values())}),
-                     hide_index=True, width="stretch")
+        section("Thường được mua cùng", "leave-one-out trên giỏ hàng test",
+                "Bỏ một sản phẩm khỏi giỏ, xem hệ thống có gợi ý lại được nó không.")
+        ci_bars([(k_, *v) for k_, v in fbt.items()], f_best, height=190)
 
 
 st.navigation([st.Page(shop, title="Cửa hàng", icon="🛍️", url_path="shop", default=True),
